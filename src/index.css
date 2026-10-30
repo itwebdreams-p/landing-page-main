@@ -1,0 +1,110 @@
+@import 'tailwindcss';
+
+@custom-variant dark (&:where([data-theme='dark'], [data-theme='dark'] *));
+
+@theme {
+  /* Brand: teal from the logo, deepened into a night-green for dark surfaces */
+  --color-brand: #20a38d;
+  --color-brand-50: var(--c-brand-50);
+  --color-brand-ink: var(--c-brand-ink);
+  --color-gold: var(--c-gold);
+  --color-surface: var(--c-surface);
+  --color-page: var(--c-page);
+  --color-brand-300: #7fd3c3;
+  --color-brand-600: #198a77;
+  --color-brand-700: #126e5f;
+  --color-brand-900: #0b3d36;
+  --color-night: #1b1f20;
+  --color-night-2: #131718;
+  --color-accent: #20a38d;
+  --color-accent-600: #198a77;
+  --color-charcoal: var(--c-charcoal);
+  --color-ink: var(--c-ink);
+  --color-mist: var(--c-mist);
+  --color-line: var(--c-line);
+  --color-muted: var(--c-muted);
+
+  --font-display: 'Bricolage Grotesque Variable', 'Segoe UI', system-ui, sans-serif;
+  --font-body: 'Manrope Variable', 'Segoe UI', system-ui, sans-serif;
+
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 16px;
+  --radius-xl: 24px;
+  --shadow-sm: 0 1px 2px var(--c-shadow), 0 4px 14px -4px var(--c-shadow);
+  --shadow-md: 0 18px 40px -14px var(--c-shadow-strong);
+  --shadow-lg: 0 40px 80px -24px var(--c-shadow-strong);
+  --ease-brand: cubic-bezier(0.2, 0.7, 0.2, 1);
+
+  --container-site: 82rem;
+  --spacing-gutter: clamp(1.25rem, 4vw, 3rem);
+  --spacing-section: clamp(5rem, 10vw, 8.5rem);
+  --spacing-header: 76px;
+  --spacing-topbar: 40px;
+  --breakpoint-nav: 1261px;
+
+  /* Motion: one hero sequence, plus small responses to clicks */
+  --animate-rise: rise 0.7s var(--ease-brand) both;
+  --animate-zoom: hero-zoom 2s var(--ease-brand) both;
+  --animate-fade-in: fade-in 0.22s var(--ease-brand) both;
+  --animate-fade-out: fade-out 0.22s var(--ease-brand) both;
+  --animate-modal-in: modal-in 0.3s var(--ease-brand) both;
+  --animate-modal-out: modal-out 0.22s var(--ease-brand) both;
+  --animate-sheet-in: sheet-in 0.34s var(--ease-brand) both;
+  --animate-sheet-out: sheet-out 0.22s var(--ease-brand) both;
+  --animate-pop: pop-in 0.18s var(--ease-brand) both;
+  --animate-swap: swap-in 0.25s var(--ease-brand) both;
+  --animate-badge: badge-pop 0.45s var(--ease-brand) both;
+
+  @keyframes dash { to { stroke-dashoffset: -28; } }
+  @keyframes ping-ring { 0% { transform: scale(0.6); opacity: 0.7; } 100% { transform: scale(2.6); opacity: 0; } }
+  @keyframes drive { from { left: 0 } to { left: 62% } }
+  @keyframes grow { from { width: 0 } to { width: 100% } }
+  @keyframes marquee { to { transform: translateX(-50%); } }
+  @keyframes rise { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: none; } }
+  @keyframes hero-zoom { from { transform: scale(1.08); } to { transform: none; } }
+  @keyframes fade-in { from { opacity: 0; } to { opacity: 1; } }
+  @keyframes fade-out { from { opacity: 1; } to { opacity: 0; } }
+  @keyframes modal-in { from { opacity: 0; transform: translateY(18px) scale(0.97); } to { opacity: 1; transform: none; } }
+  @keyframes modal-out { from { opacity: 1; transform: none; } to { opacity: 0; transform: translateY(12px) scale(0.98); } }
+  @keyframes sheet-in { from { transform: translateY(100%); } to { transform: none; } }
+  @keyframes sheet-out { from { transform: none; } to { transform: translateY(100%); } }
+  @keyframes pop-in { from { opacity: 0; transform: translateY(-6px) scale(0.97); } to { opacity: 1; transform: none; } }
+  @keyframes swap-in { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+  @keyframes badge-pop { 0% { transform: scale(0.4); opacity: 0; } 70% { transform: scale(1.1); } 100% { transform: scale(1); opacity: 1; } }
+}
+
+/* The only plain-CSS block: global element defaults, written with Tailwind's @apply */
+@layer base {
+  :root {
+    color-scheme: light;
+    --c-page: #ffffff; --c-surface: #ffffff; --c-mist: #f1f6f5; --c-line: #dbe5e2;
+    --c-ink: #0e1516; --c-charcoal: #384244; --c-muted: #566266;
+    --c-gold: #20a38d; --c-brand-50: #e6f5f1; --c-brand-ink: #126e5f;
+    --c-shadow: rgb(14 21 22 / 0.06); --c-shadow-strong: rgb(14 21 22 / 0.28);
+  }
+  [data-theme='dark'] {
+    color-scheme: dark;
+    --c-page: #080d0e; --c-surface: #121a1b; --c-mist: #0d1415; --c-line: #233032;
+    --c-ink: #f2f7f6; --c-charcoal: #c5d2cf; --c-muted: #8da09d;
+    --c-gold: #4fd8c0; --c-brand-50: #12302b; --c-brand-ink: #62d6c1;
+    --c-shadow: rgb(0 0 0 / 0.35); --c-shadow-strong: rgb(0 0 0 / 0.7);
+  }
+  body { transition: background-color .3s, color .3s; }
+  ::selection { background: rgb(32 163 141 / 0.28); }
+  html { scrollbar-color: var(--color-brand) var(--c-mist); scrollbar-width: thin; }
+  html {
+    @apply scroll-smooth motion-reduce:scroll-auto;
+    scroll-padding-top: calc(var(--spacing-header) + 8px);
+  }
+  body { @apply bg-page font-body text-[1.0625rem] leading-[1.7] text-charcoal antialiased; }
+  h1, h2, h3, h4 { @apply font-display text-ink; }
+  h1 { @apply text-[clamp(2.9rem,7vw,6.5rem)] leading-[0.96] font-bold tracking-[-0.045em]; }
+  h2 { @apply text-[clamp(2.2rem,4.4vw,3.8rem)] leading-[1.03] font-bold tracking-[-0.04em]; }
+  h3 { @apply text-xl leading-[1.3] font-semibold tracking-[-0.015em]; }
+  :focus-visible { outline: 3px solid var(--color-brand); outline-offset: 3px; border-radius: 4px; }
+  button:not(:disabled), [role='button']:not(:disabled) { cursor: pointer; }
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+  }
+}

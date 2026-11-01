@@ -33,8 +33,15 @@ export interface BookingPayload {
   email: string
   pickup: string
   drop: string
+  pickupAddress: string
+  pickupLat: number | null
+  pickupLng: number | null
+  dropAddress: string
+  dropLat: number | null
+  dropLng: number | null
   vehicle: string
   cargo: string
+  cargoOther: string
   date: string
   weight: string
   notes: string

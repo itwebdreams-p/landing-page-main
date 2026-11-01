@@ -4,12 +4,22 @@ import { Briefcase, Building2, CheckCircle2, Loader2, MessageCircle, Send } from
 import { Button } from '@/components/ui/Button'
 import { SelectField, TextAreaField, TextField } from '@/components/ui/Field'
 import { cargoTypes, vehicles } from '@/data/content'
-import { BookingError, submitBooking } from '@/services/booking'
+import { BookingError, loadBookingOptions, submitBooking } from '@/services/booking'
 import { useAuth } from './context/AuthContext'
+import { LocationPicker } from './LocationPicker'
+import type { PickedLocation } from './LocationPicker'
 import type { AuthUser, BookingPayload, BookingRole } from '@/types'
-import type { BookingResult } from '@/services/booking'
+import type { BookingOptions, BookingResult } from '@/services/booking'
 
 type Errors = Partial<Record<keyof BookingPayload, string>>
+type TextKey = Exclude<keyof BookingPayload, 'role' | 'pickupLat' | 'pickupLng' | 'dropLat' | 'dropLng'>
+
+const OTHER_CARGO = 'Other'
+// Shown until the live lists arrive, and for good if the server cannot be reached.
+const defaultOptions: BookingOptions = {
+  cargoTypes: cargoTypes.filter((c) => c !== OTHER_CARGO),
+  vehicles: vehicles.map((v) => ({ value: v.name, label: `${v.name} (${v.capacity})` })),
+}
 
 const today = () => new Date().toISOString().slice(0, 10)
 const digits = (v: string) => v.replace(/\D/g, '')
@@ -21,7 +31,8 @@ const PAN = /^[A-Z]{5}\d{4}[A-Z]$/
 const emptyForm = (user: AuthUser | null, role: BookingRole): BookingPayload => ({
   role, companyName: '', name: user?.name ?? '', address: '', gst: '', pan: '', aadhaar: '',
   phone: user?.phone ?? '', email: user?.email ?? '',
-  pickup: '', drop: '', vehicle: '', cargo: '', date: '', weight: '', notes: '',
+  pickup: '', drop: '', pickupAddress: '', pickupLat: null, pickupLng: null, dropAddress: '', dropLat: null, dropLng: null,
+  vehicle: '', cargo: '', cargoOther: '', date: '', weight: '', notes: '',
 })
 
 function validate(v: BookingPayload): Errors {
@@ -40,9 +51,10 @@ function validate(v: BookingPayload): Errors {
   }
   if (!/^[6-9]\d{9}$/.test(phoneDigits(v.phone))) e.phone = 'Enter a valid 10-digit mobile number.'
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(v.email.trim())) e.email = 'Enter a valid email address.'
-  if (!v.pickup.trim()) e.pickup = 'Enter the pickup location.'
-  if (!v.drop.trim()) e.drop = 'Enter the delivery location.'
+  if (!v.pickup.trim()) e.pickup = 'Search the pickup location, or enter its city.'
+  if (!v.drop.trim()) e.drop = 'Search the delivery location, or enter its city.'
   if (!v.cargo) e.cargo = 'Select the type of cargo.'
+  else if (v.cargo === OTHER_CARGO && !v.cargoOther.trim()) e.cargoOther = 'Write what the cargo is.'
   if (!v.date) e.date = 'Choose a pickup date.'
   else if (v.date < today()) e.date = 'Pickup date cannot be in the past.'
   return e
@@ -121,7 +133,27 @@ export function BookingForm() {
   const [result, setResult] = useState<BookingResult | null>(null)
   const [sendError, setSendError] = useState('')
   const [website, setWebsite] = useState('')
+  const [options, setOptions] = useState(defaultOptions)
   const isBroker = values.role === 'broker'
+
+  useEffect(() => {
+    let current = true
+    loadBookingOptions().then((live) => {
+      if (!current || !live) return
+      const next = {
+        cargoTypes: live.cargoTypes.length ? live.cargoTypes.filter((c) => c.toLowerCase() !== OTHER_CARGO.toLowerCase()) : defaultOptions.cargoTypes,
+        vehicles: live.vehicles.length ? live.vehicles : defaultOptions.vehicles,
+      }
+      setOptions(next)
+      // A choice made from the list shown first may not be on the live one.
+      setValues((v) => ({
+        ...v,
+        cargo: v.cargo === OTHER_CARGO || next.cargoTypes.includes(v.cargo) ? v.cargo : '',
+        vehicle: next.vehicles.some((option) => option.value === v.vehicle) ? v.vehicle : '',
+      }))
+    })
+    return () => { current = false }
+  }, [])
 
   // Fill in details for logged-in users (never overwrites what they typed).
   useEffect(() => {
@@ -133,7 +165,16 @@ export function BookingForm() {
     }))
   }, [user])
 
-  const bind = (key: Exclude<keyof BookingPayload, 'role'>, transform?: (v: string) => string) => ({
+  const setPickup = (place: PickedLocation) => {
+    setValues((v) => ({ ...v, pickup: place.city, pickupAddress: place.address, pickupLat: place.lat, pickupLng: place.lng }))
+    setErrors((er) => ({ ...er, pickup: undefined }))
+  }
+  const setDrop = (place: PickedLocation) => {
+    setValues((v) => ({ ...v, drop: place.city, dropAddress: place.address, dropLat: place.lat, dropLng: place.lng }))
+    setErrors((er) => ({ ...er, drop: undefined }))
+  }
+
+  const bind = (key: TextKey, transform?: (v: string) => string) => ({
     value: values[key],
     error: errors[key],
     onChange: (e: { target: { value: string } }) => {
@@ -155,7 +196,8 @@ export function BookingForm() {
     }
     setStatus('sending')
     setSendError('')
-    const payload: BookingPayload = isBroker ? { ...values, companyName: '', gst: '' } : { ...values, name: '' }
+    const cargo = values.cargo === OTHER_CARGO ? values.cargoOther.trim() : values.cargo
+    const payload: BookingPayload = isBroker ? { ...values, cargo, companyName: '', gst: '' } : { ...values, cargo, name: '' }
     try {
       setResult(await submitBooking(payload, website))
       setStatus('done')
@@ -214,15 +256,31 @@ export function BookingForm() {
         )}
 
         <Group title="Shipment details">
-          <TextField label="Pickup location" placeholder="e.g. Lucknow" {...bind('pickup')} />
-          <TextField label="Delivery location" placeholder="e.g. Delhi" {...bind('drop')} />
+          <div className="grid gap-6 sm:col-span-2 lg:grid-cols-2">
+            <LocationPicker
+              kind="pickup"
+              value={{ address: values.pickupAddress, city: values.pickup, lat: values.pickupLat, lng: values.pickupLng }}
+              onChange={setPickup}
+              error={errors.pickup}
+            />
+            <LocationPicker
+              kind="drop"
+              value={{ address: values.dropAddress, city: values.drop, lat: values.dropLat, lng: values.dropLng }}
+              onChange={setDrop}
+              error={errors.drop}
+            />
+          </div>
           <SelectField label="Cargo type" {...bind('cargo')}>
             <option value="">Select cargo type</option>
-            {cargoTypes.map((c) => <option key={c} value={c}>{c}</option>)}
+            {options.cargoTypes.map((c) => <option key={c} value={c}>{c}</option>)}
+            <option value={OTHER_CARGO}>{OTHER_CARGO}</option>
           </SelectField>
+          {values.cargo === OTHER_CARGO && (
+            <TextField label="What is the cargo?" placeholder="e.g. Solar panels" maxLength={150} {...bind('cargoOther')} />
+          )}
           <SelectField label="Vehicle" {...bind('vehicle')}>
             <option value="">Not sure yet</option>
-            {vehicles.map((v) => <option key={v.name} value={v.name}>{v.name} ({v.capacity})</option>)}
+            {options.vehicles.map((v) => <option key={v.value} value={v.value}>{v.label}</option>)}
           </SelectField>
           <TextField label="Pickup date" type="date" min={today()} {...bind('date')} />
           <TextField label="Approx. weight" placeholder="e.g. 4 tonnes" hint="Optional" {...bind('weight')} />
